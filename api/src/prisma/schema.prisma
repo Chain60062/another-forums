@@ -1,0 +1,125 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String      @id @default(uuid())
+  email          String      @unique
+  name           String
+  role           String?
+  hashedPassword String
+  threads        Thread[]
+  Profile        Profile?
+  BannedUser     BannedUser?
+  Report         Report[]
+}
+
+model Profile {
+  id      Int     @id @default(autoincrement())
+  bio     String?
+  picture File?
+  userId  String  @unique
+  User    User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model BannedUser {
+  id      Int      @id @default(autoincrement())
+  userId  String   @unique
+  User    User     @relation(fields: [userId], references: [id])
+  reason  String?
+  banTime DateTime
+}
+
+model Topic {
+  id      Int      @id @default(autoincrement())
+  title   String
+  threads Thread[]
+}
+
+model Thread {
+  id            Int             @id @default(autoincrement())
+  title         String
+  content       String?
+  comments      Comment[]
+  User          User            @relation(fields: [userId], references: [id], onUpdate: Cascade, onDelete: Cascade)
+  userId        String
+  Topic         Topic?          @relation(fields: [topicId], references: [id])
+  topicId       Int?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  ThreadTags    TagsOnThread[]
+  Report        Report[]
+  FilesOnThread FilesOnThread[]
+}
+
+model TagsOnThread {
+  thread   Thread @relation(fields: [threadId], references: [id], onUpdate: Cascade, onDelete: Cascade)
+  tag      Tag    @relation(fields: [tagId], references: [id], onUpdate: Cascade, onDelete: Cascade)
+  threadId Int
+  tagId    Int
+
+  @@id([threadId, tagId])
+}
+
+model Tag {
+  id         Int            @id @default(autoincrement())
+  content    String
+  ThreadTags TagsOnThread[]
+}
+
+model Comment {
+  id             Int              @id @default(autoincrement())
+  authorId       Int
+  threadId       Int
+  parentId       Int?
+  parent         Comment?         @relation("ResponseComments", fields: parentId, references: [id])
+  child          Comment[]        @relation("ResponseComments")
+  Thread         Thread           @relation(fields: [threadId], references: [id])
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  FilesOnComment FilesOnComment[]
+}
+
+model Report {
+  id       Int     @id @default(autoincrement())
+  reason   String?
+  User     User?   @relation(fields: [userId], references: [id])
+  Thread   Thread? @relation(fields: [threadId], references: [id])
+  userId   String
+  threadId Int
+}
+
+model FilesOnComment {
+  comment   Comment @relation(fields: [commentId], references: [id])
+  commentId Int
+  file      File    @relation(fields: [fileId], references: [id])
+  fileId    Int
+
+  @@id([commentId, fileId])
+}
+
+model FilesOnThread {
+  thread   Thread @relation(fields: [threadId], references: [id])
+  threadId Int
+  file     File   @relation(fields: [fileId], references: [id])
+  fileId   Int
+
+  @@id([threadId, fileId])
+}
+
+model File {
+  id             Int              @id @default(autoincrement())
+  filePath       String
+  profile        Profile          @relation(fields: [profileId], references: [id])
+  profileId      Int              @unique // relation scalar field (used in the `@relation` attribute above)
+  FilesOnComment FilesOnComment[]
+  FilesOnThread  FilesOnThread[]
+}
